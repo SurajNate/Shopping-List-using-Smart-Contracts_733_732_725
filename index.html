@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping List DApp</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #itemList { margin-top: 20px; }
+        .item { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>Shopping List DApp</h1>
+    
+    <input type="text" id="itemInput" placeholder="Add an item..." />
+    <button id="addItemButton">Add Item</button>
+    <button id="showCountButton">Show Total Items</button>
+    
+    <div id="itemList"></div>
+    <div id="totalItems"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.6.0/web3.min.js"></script>
+    <script>
+        const contractAddress = 'YOUR_CONTRACT_ADDRESS'; // Replace with your deployed contract address
+        const abi = [ /* Your contract ABI here */ ];
+
+        let web3;
+        let contract;
+
+        // Initialize Web3 and the contract
+        async function init() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                contract = new web3.eth.Contract(abi, contractAddress);
+                loadItems();
+            } else {
+                alert('Please install MetaMask!');
+            }
+        }
+
+        // Load items from the contract
+        async function loadItems() {
+            const count = await contract.methods.taskCount().call();
+            const itemListDiv = document.getElementById('itemList');
+            itemListDiv.innerHTML = '';
+
+            for (let i = 1; i <= count; i++) {
+                const item = await contract.methods.items(i).call();
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'item';
+                itemDiv.innerHTML = `
+                    ${item.content} <button onclick="removeItem(${item.id})">Remove</button>
+                `;
+                itemListDiv.appendChild(itemDiv);
+            }
+        }
+
+        // Add a new item
+        async function addItem() {
+            const itemInput = document.getElementById('itemInput');
+            const content = itemInput.value;
+            if (content) {
+                const accounts = await web3.eth.getAccounts();
+                await contract.methods.ADDItem(content).send({ from: accounts[0] });
+                itemInput.value = ''; // Clear input
+                loadItems(); // Reload items
+            } else {
+                alert("Item content cannot be empty.");
+            }
+        }
+
+        // Remove an item
+        async function removeItem(id) {
+            const accounts = await web3.eth.getAccounts();
+            await contract.methods.toggleCompleted(id).send({ from: accounts[0] });
+            loadItems(); // Reload items after removing
+        }
+
+        // Show total items
+        async function showTotalItems() {
+            const count = await contract.methods.taskCount().call();
+            document.getElementById('totalItems').innerText = `Total Items: ${count}`;
+        }
+
+        // Event listeners for buttons
+        document.getElementById('addItemButton').onclick = addItem;
+        document.getElementById('showCountButton').onclick = showTotalItems;
+
+        // Initialize on page load
+        window.onload = init;
+    </script>
+</body>
+</html>
+
